@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elasticity Micro Quiz</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --inner:#0f172a; --line:#334155; --text:#e2e8f0; --muted:#94a3b8; --accent:#6366f1; --ok:#22c55e; --bad:#ef4444; --okbg:#14532d55; --badbg:#7f1d1d55; }
+  :root[data-theme="light"] { --bg:#f1f5f9; --card:#ffffff; --inner:#f8fafc; --line:#cbd5e1; --text:#0f172a; --muted:#475569; --okbg:#dcfce7; --badbg:#fee2e2; }
+  #theme { position:fixed; top:12px; right:12px; padding:8px 12px; background:var(--card); color:var(--text); border:2px solid var(--line); border-radius:999px; cursor:pointer; font-size:.9rem; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); display:flex; justify-content:center; padding:24px 16px; }
+  .wrap { width:100%; max-width:640px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  .sub { color:var(--muted); margin-bottom:20px; font-size:.9rem; }
+  .card { background:var(--card); border-radius:14px; padding:22px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; margin-bottom:16px; overflow:hidden; }
+  .bar > div { height:100%; background:var(--accent); transition:width .3s; }
+  .term { color:var(--accent); font-size:.8rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+  .q { font-size:1.1rem; margin-bottom:16px; line-height:1.4; }
+  button.opt { display:block; width:100%; text-align:left; padding:12px 14px; margin-bottom:10px; background:var(--inner); color:var(--text); border:2px solid var(--line); border-radius:10px; font-size:1rem; cursor:pointer; }
+  button.opt:hover:not(:disabled) { border-color:var(--accent); }
+  button.opt.ok { border-color:var(--ok); background:var(--okbg); }
+  button.opt.bad { border-color:var(--bad); background:var(--badbg); }
+  .exp { margin-top:8px; padding:12px; background:var(--inner); border-radius:10px; color:var(--muted); font-size:.95rem; line-height:1.4; }
+  .next, .restart { margin-top:14px; padding:10px 20px; background:var(--accent); color:#fff; border:0; border-radius:8px; font-size:1rem; cursor:pointer; }
+  .score { font-size:2.4rem; margin:8px 0; }
+  .hidden { display:none; }
+  ul.miss { color:var(--muted); line-height:1.6; }
+</style>
+</head>
+<body>
+<button id="theme" aria-label="Toggle light/dark mode"></button>
+<div class="wrap">
+  <h1>Elasticity Micro Quiz</h1>
+  <div class="sub" id="meta"></div>
+  <div class="card" id="quiz">
+    <div class="bar"><div id="prog"></div></div>
+    <div class="term" id="term"></div>
+    <div class="q" id="q"></div>
+    <div id="opts"></div>
+    <div class="exp hidden" id="exp"></div>
+    <button class="next hidden" id="next">Next →</button>
+  </div>
+  <div class="card hidden" id="result">
+    <div>Final score</div>
+    <div class="score" id="score"></div>
+    <div id="missText"></div>
+    <ul class="miss" id="miss"></ul>
+    <button class="restart" onclick="start()">Try again</button>
+  </div>
+</div>
+<script>
+// First option in each list is the correct answer; options are shuffled at runtime.
+const BANK = [
+ ["Price elasticity of demand","What does price elasticity of demand measure?",
+  ["Responsiveness of quantity demanded to a change in price","Responsiveness of supply to input costs","The slope of the supply curve","Change in income after a price change"],
+  "Ed = % change in quantity demanded ÷ % change in price."],
+ ["Price elasticity of demand","If price rises 10% and quantity demanded falls 20%, Ed (absolute value) is:",
+  ["2","0.5","10","30"],"20% ÷ 10% = 2."],
+ ["Midpoint formula","Why is the midpoint formula used?",
+  ["It gives the same elasticity whether price rises or falls between two points","It always gives a value of 1","It ignores quantity changes","It only works for supply"],
+  "It uses averages of the two prices and quantities as the base, so direction doesn't matter."],
+ ["Midpoint formula","Which is the midpoint formula for Ed?",
+  ["(ΔQ / average Q) ÷ (ΔP / average P)","(ΔQ / initial Q) ÷ (ΔP / initial P)","ΔQ ÷ ΔP","(ΔP / average P) ÷ (ΔQ / average Q)"],
+  "Percent changes are computed against the average (midpoint) of old and new values."],
+ ["Elastic demand","Demand is elastic when:",
+  ["Ed > 1; quantity changes by a larger percent than price","Ed < 1","Ed = 1","Quantity doesn't change at all"],
+  "Buyers are very responsive to price."],
+ ["Elastic demand","Which good most likely has elastic demand?",
+  ["A particular brand of cereal with many substitutes","Insulin for a diabetic","Table salt","Gasoline in the very short run"],
+  "More substitutes and more discretionary → more elastic."],
+ ["Inelastic demand","Demand is inelastic when:",
+  ["Ed < 1; quantity changes by a smaller percent than price","Ed > 1","Ed = 1","Ed = ∞"],
+  "Buyers are not very responsive to price."],
+ ["Inelastic demand","Which factor makes demand more inelastic?",
+  ["The good is a necessity with few substitutes","Many close substitutes","A long time to adjust","The good is a large share of income"],
+  "Necessities and a lack of substitutes reduce responsiveness."],
+ ["Unit elasticity","Unit elastic demand means:",
+  ["Ed = 1; % change in Q equals % change in P","Ed = 0","Ed = ∞","Ed > 1"],
+  "Quantity and price change by the same percent."],
+ ["Unit elasticity","With unit elastic demand, a price increase causes total revenue to:",
+  ["Stay unchanged","Rise","Fall","Double"],"The Q drop exactly offsets the higher price."],
+ ["Perfectly inelastic demand","Perfectly inelastic demand has Ed equal to and a demand curve that is:",
+  ["0; vertical","0; horizontal","∞; horizontal","1; downward-sloping"],
+  "Quantity demanded doesn't change at all regardless of price."],
+ ["Perfectly inelastic demand","With perfectly inelastic demand, a price increase causes total revenue to:",
+  ["Rise","Fall","Stay the same","Become zero"],"Q is unchanged, so TR = P × Q rises."],
+ ["Perfectly elastic demand","Perfectly elastic demand has Ed equal to and a demand curve that is:",
+  ["∞; horizontal","∞; vertical","0; horizontal","0; vertical"],
+  "At any higher price, quantity demanded drops to zero."],
+ ["Perfectly elastic demand","Which situation approximates perfectly elastic demand for one seller?",
+  ["A wheat farmer facing a market price in a competitive market","A sole water provider","A patented drug","A luxury yacht maker"],
+  "A competitive firm can sell all it wants at market price but nothing above it."],
+ ["Total revenue","Total revenue equals:",
+  ["Price × quantity sold","Price − cost","Quantity ÷ price","Price × cost"],"TR = P × Q."],
+ ["Total revenue","Price rises from $5 to $6 and quantity falls from 100 to 90. Total revenue goes from:",
+  ["$500 to $540","$500 to $450","$600 to $540","$500 to $500"],"5×100 = 500; 6×90 = 540."],
+ ["Total-revenue test","Total-revenue test: if price falls and total revenue rises, demand is:",
+  ["Elastic","Inelastic","Unit elastic","Perfectly inelastic"],
+  "Price and TR move in opposite directions → elastic."],
+ ["Total-revenue test","Total-revenue test: if price rises and total revenue rises, demand is:",
+  ["Inelastic","Elastic","Unit elastic","Perfectly elastic"],
+  "Price and TR move in the same direction → inelastic."],
+ ["Price elasticity of supply","Price elasticity of supply measures:",
+  ["% change in quantity supplied ÷ % change in price","% change in quantity demanded ÷ % change in price","% change in price ÷ % change in cost","% change in supply ÷ % change in income"],
+  "How responsive producers are to a price change."],
+ ["Price elasticity of supply","The main determinant of price elasticity of supply is:",
+  ["Time available to adjust output","Consumer income","Number of buyers","Taste changes"],
+  "The longer producers have, the easier it is to change output."],
+ ["Immediate market period","In the immediate market period, supply is:",
+  ["Perfectly inelastic (vertical)","Perfectly elastic","Unit elastic","Highly elastic"],
+  "Producers can't change output; e.g., fresh fish at the dock today."],
+ ["Immediate market period","Which describes the immediate market period?",
+  ["Time too short for producers to change quantity supplied","Time to change plant size","Time to change only variable inputs","Time for new firms to enter"],
+  "Output is fixed."],
+ ["Short run","In the short run, producers can:",
+  ["Change variable inputs but not plant capacity","Change nothing","Change plant size and enter the industry","Only change prices of inputs"],
+  "Supply is more elastic than in the immediate period, but still limited."],
+ ["Short run","Compared with the immediate market period, short-run supply is:",
+  ["More elastic","Less elastic","Perfectly inelastic","Unrelated to time"],"Firms can raise output using more labor and materials."],
+ ["Long run","The long run is a period long enough for:",
+  ["Firms to change plant size and new firms to enter or exit","Firms to change only labor","Nothing to change","Only prices to change"],
+  "All inputs are variable."],
+ ["Long run","Supply is typically most elastic in the:",
+  ["Long run","Immediate market period","Short run","They are always equal"],
+  "More time → more ability to adjust output."],
+ ["Cross elasticity of demand","Cross elasticity of demand measures:",
+  ["% change in quantity demanded of X ÷ % change in price of Y","% change in Q of X ÷ % change in income","% change in Q of X ÷ % change in price of X","% change in supply of X ÷ % change in price of Y"],
+  "How the demand for one good responds to the price of another."],
+ ["Cross elasticity of demand","A positive cross elasticity indicates the goods are:",
+  ["Substitutes","Complements","Independent","Inferior"],"Price of Y up → buyers switch to X (Q of X up)."],
+ ["Cross elasticity of demand","Peanut butter and jelly most likely have cross elasticity that is:",
+  ["Negative (complements)","Positive (substitutes)","Zero","Infinite"],
+  "Price of one up → demand for the other down."],
+ ["Income elasticity of demand","Income elasticity of demand measures:",
+  ["% change in quantity demanded ÷ % change in income","% change in Q ÷ % change in price","% change in income ÷ % change in price","% change in supply ÷ % change in income"],
+  "How demand responds to consumer income."],
+ ["Income elasticity of demand","A negative income elasticity indicates the good is:",
+  ["Inferior","Normal","A luxury","A complement"],"Income rises → demand falls (e.g., instant noodles)."],
+ ["Income elasticity of demand","Income elasticity > 1 indicates a:",
+  ["Normal good that is a luxury (income elastic)","Inferior good","Necessity","Perfect substitute"],
+  "Demand rises by a larger percent than income."],
+];
+
+let order, i, correct, missed;
+const $ = id => document.getElementById(id);
+const shuffle = a => { a = a.slice(); for (let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]];} return a; };
+
+function start(){
+  order = shuffle(BANK); i = 0; correct = 0; missed = [];
+  $("quiz").classList.remove("hidden"); $("result").classList.add("hidden");
+  show();
+}
+function show(){
+  const [term,q,opts,exp] = order[i];
+  $("meta").textContent = `Question ${i+1} of ${order.length} · Score ${correct}`;
+  $("prog").style.width = (i/order.length*100)+"%";
+  $("term").textContent = term; $("q").textContent = q;
+  $("exp").classList.add("hidden"); $("next").classList.add("hidden");
+  $("opts").innerHTML = "";
+  shuffle(opts.map((t,idx)=>({t,ok:idx===0}))).forEach(o=>{
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = o.t;
+    b.onclick = () => answer(b, o.ok, exp);
+    $("opts").appendChild(b);
+  });
+}
+function answer(btn, ok, exp){
+  const [term,q,opts] = order[i];
+  document.querySelectorAll("button.opt").forEach(b=>{
+    b.disabled = true;
+    if (b.textContent === opts[0]) b.classList.add("ok");
+  });
+  if (ok) correct++; else { btn.classList.add("bad"); missed.push(term); }
+  $("exp").textContent = (ok ? "Correct. " : "Not quite. ") + exp;
+  $("exp").classList.remove("hidden");
+  $("next").textContent = i === order.length-1 ? "See results" : "Next →";
+  $("next").classList.remove("hidden");
+  $("meta").textContent = `Question ${i+1} of ${order.length} · Score ${correct}`;
+}
+$("next").onclick = () => { i++; i < order.length ? show() : finish(); };
+function finish(){
+  $("quiz").classList.add("hidden"); $("result").classList.remove("hidden");
+  $("score").textContent = `${correct} / ${order.length}`;
+  const uniq = [...new Set(missed)];
+  $("missText").textContent = uniq.length ? "Review these terms:" : "Perfect — nothing to review!";
+  $("miss").innerHTML = uniq.map(t=>`<li>${t}</li>`).join("");
+  $("meta").textContent = "";
+}
+function setTheme(t){
+  document.documentElement.dataset.theme = t;
+  $("theme").textContent = t === "dark" ? "Light mode" : "Dark mode";
+  try { localStorage.setItem("theme", t); } catch(e) {}
+}
+let saved = null;
+try { saved = localStorage.getItem("theme"); } catch(e) {}
+setTheme(saved || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+$("theme").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+
+start();
+</script>
+</body>
+</html>
